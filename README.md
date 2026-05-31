@@ -5,7 +5,7 @@ This project demonstrates a Deep Q-Network (DQN) agent trained to solve the **Ac
 ### Features
 - Load and compare **pretrained vs fine-tuned DQN models**
 - Run real-time **simulation with evaluation metrics (reward + steps)**
-- Visualize performance with videos 
+- Visualize performance **with videos** 
 - Generate comparison graphs between models
 - Clean UI with custom styling
 
