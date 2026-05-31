@@ -7,6 +7,9 @@ from huggingface_sb3 import load_from_hub
 import numpy as np 
 from numpy import random
 import matplotlib.pyplot as plt
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.platypus import Image
 
 np.random.seed(42)
 random.seed(42)
@@ -223,6 +226,98 @@ def run_simulation(model, video_path, title):
     return total_reward, steps
 
 
+# ==============================
+# FUNCTION OF SAVE CHARTS
+# ==============================
+
+
+def save_full_dashboard_image(old_steps, new_steps, old_reward, new_reward):
+
+    import matplotlib.pyplot as plt
+
+    labels = ["Old DQN", "Fine-Tuned DQN"]
+
+    fig, ax = plt.subplots(2, 2, figsize=(10, 8))
+
+    # Steps
+    ax[0, 0].plot(labels, [old_steps, new_steps], marker='o')
+    ax[0, 0].set_title("Steps")
+
+    # Reward
+    ax[0, 1].plot(labels, [old_reward, new_reward], marker='o', color='green')
+    ax[0, 1].set_title("Reward")
+
+    # Bar
+    ax[1, 0].bar(labels, [old_steps, new_steps])
+    ax[1, 0].set_title("Steps Bar")
+
+    # Efficiency
+    ax[1, 1].plot(labels, [old_steps, new_steps], marker='o', color='yellow')
+    ax[1, 1].set_title("Efficiency - lower is better")
+
+    plt.tight_layout()
+
+    path = "dashboard.png"
+    plt.savefig(path, dpi=200, bbox_inches="tight")
+    plt.close()
+
+    return path
+    
+
+# ==============================
+# FUNCTION OF DOWLOADING PDF
+# ==============================
+
+def generate_pdf(old_steps, new_steps, old_reward, new_reward):
+
+    file_path = "acrobot_report.pdf"
+
+    chart_path = save_full_dashboard_image(
+        old_steps,
+        new_steps,
+        old_reward,
+        new_reward
+    )
+
+    doc = SimpleDocTemplate(file_path)
+    styles = getSampleStyleSheet()
+    content = []
+
+    content.append(
+        Paragraph("Acrobot DQN Performance Report", styles["Title"])
+    )
+
+    content.append(Spacer(1, 15))
+
+    content.append(
+        Paragraph(f"Old Steps: {old_steps}", styles["Normal"])
+    )
+    content.append(
+        Paragraph(f"New Steps: {new_steps}", styles["Normal"])
+    )
+
+    content.append(
+        Paragraph(f"Old Reward: {old_reward}", styles["Normal"])
+    )
+    content.append(
+        Paragraph(f"New Reward: {new_reward}", styles["Normal"])
+    )
+
+    content.append(Spacer(1, 20))
+
+    content.append(
+        Paragraph("Performance Dashboard", styles["Heading2"])
+    )
+
+    content.append(Spacer(1, 10))
+
+    content.append(
+        Image(chart_path, width=500, height=400)
+    )
+
+    doc.build(content)
+
+    return file_path
 
 # =====================================================
 # 1- DEMO PAGE
@@ -326,71 +421,91 @@ elif page == "Graphs":
         old_reward, old_steps = evaluate_model(old_model)
         new_reward, new_steps = evaluate_model(new_model)
 
-    import matplotlib.pyplot as plt
-
     labels = ["Old DQN", "Fine-Tuned DQN"]
 
     steps = [old_steps, new_steps]
     rewards = [old_reward, new_reward]
 
-    fig, ax = plt.subplots(2, 2, figsize=(12, 8))
-
     # =================================================
     # 1. LINE - Steps Trend
     # =================================================
-    ax[0, 0].plot(labels, steps, marker='o', linewidth=3, color='#3b82f6')
-    ax[0, 0].set_title("Steps Trend")
-    ax[0, 0].set_ylabel("Steps")
-    ax[0, 0].grid(True, alpha=0.3)
+    fig1, ax1 = plt.subplots()
+
+    ax1.plot(labels, steps, marker='o', linewidth=3, color='#3b82f6')
+    ax1.set_title("Steps Trend")
+    ax1.set_ylabel("Steps")
+    ax1.grid(True, alpha=0.3)
 
     for i, v in enumerate(steps):
-        ax[0, 0].text(i, v, str(v), ha='center', fontsize=10)
+        ax1.text(i, v, str(v), ha='center')
+
+    plt.tight_layout()
+    st.pyplot(fig1)
 
     # =================================================
     # 2. LINE - Reward Trend
     # =================================================
-    ax[0, 1].plot(labels, rewards, marker='o', linewidth=3, color='#22c55e')
-    ax[0, 1].set_title("Reward Trend")
-    ax[0, 1].set_ylabel("Reward")
-    ax[0, 1].axhline(0, color="gray", linestyle="--", linewidth=1)
-    ax[0, 1].grid(True, alpha=0.3)
+    fig2, ax2 = plt.subplots()
+
+    ax2.plot(labels, rewards, marker='o', linewidth=3, color='#22c55e')
+    ax2.set_title("Reward Trend")
+    ax2.set_ylabel("Reward")
+    ax2.axhline(0, color="gray", linestyle="--", linewidth=1)
+    ax2.grid(True, alpha=0.3)
 
     for i, v in enumerate(rewards):
-        ax[0, 1].text(i, v, str(v), ha='center', fontsize=10)
-
-    # =================================================
-    # 3. BAR CHART - Steps Comparison (NEW)
-    # =================================================
-    ax[1, 0].bar(labels, steps, color=['#f59e0b', '#3b82f6'])
-    ax[1, 0].set_title("Steps Comparison (Bar Chart)")
-    ax[1, 0].set_ylabel("Steps")
-    ax[1, 0].grid(axis='y', alpha=0.3)
-
-    for i, v in enumerate(steps):
-        ax[1, 0].text(i, v, str(v), ha='center', va='bottom')
-
-    # =================================================
-    # 4. STEP EFFICIENCY VISUALIZATION (NEW STYLE)
-    # =================================================
-
-    efficiency = [
-    old_steps,
-    new_steps
-     ]
-
-    ax[1, 1].plot(labels, efficiency, marker='o', linewidth=4, color='#ef4444')
-    ax[1, 1].fill_between(labels, efficiency, color='#ef4444', alpha=0.2)
-
-    ax[1, 1].set_title("Step Efficiency Drop (Lower is Better)")
-    ax[1, 1].set_ylabel("Steps")
-    ax[1, 1].grid(True, alpha=0.3)
-
-    for i, v in enumerate(efficiency):  
-        ax[1, 1].text(i, v, str(v), ha='center', fontsize=10)
+        ax2.text(i, v, str(v), ha='center')
 
     plt.tight_layout()
-    st.pyplot(fig)
+    st.pyplot(fig2)
 
+    # =================================================
+    # 3. BAR CHART - Steps Comparison
+    # =================================================
+    fig3, ax3 = plt.subplots()
+
+    ax3.bar(labels, steps, color=['#f59e0b', '#3b82f6'])
+    ax3.set_title("Steps Comparison")
+    ax3.set_ylabel("Steps")
+
+    for i, v in enumerate(steps):
+        ax3.text(i, v, str(v), ha='center', va='bottom')
+
+    plt.tight_layout()
+    st.pyplot(fig3)
+
+    # =================================================
+    # 4. RADAR STYLE VISUAL 
+    # =================================================
+    
+
+    categories = ["Steps", "Reward (abs)"]
+    old_vals = [old_steps, abs(old_reward)]
+    new_vals = [new_steps, abs(new_reward)]
+
+    angles = np.linspace(0, 2*np.pi, len(categories), endpoint=False).tolist()
+    old_vals += old_vals[:1]
+    new_vals += new_vals[:1]
+    angles += angles[:1]
+
+    fig4 = plt.figure()
+    ax4 = plt.subplot(111, polar=True)
+
+    ax4.plot(angles, old_vals, linewidth=2, label="Old DQN")
+    ax4.fill(angles, old_vals, alpha=0.2)
+
+    ax4.plot(angles, new_vals, linewidth=2, label="Fine-Tuned DQN")
+    ax4.fill(angles, new_vals, alpha=0.2)
+
+    ax4.set_xticks(angles[:-1])
+    ax4.set_xticklabels(categories)
+    ax4.set_title("Overall Performance Radar")
+
+    ax4.legend(loc="upper right")
+
+    st.pyplot(fig4)
+
+    
     # =================================================
     # IMPROVEMENT METRICS
     # =================================================
@@ -409,6 +524,23 @@ elif page == "Graphs":
     st.metric("Improvement in Steps (%)", f"{improvement_steps:.1f}%")
     st.metric("Improvement in Reward (%)", f"{improvement_reward:.1f}%")
 
+    
+    
+    pdf_path = generate_pdf(
+    old_steps,
+    new_steps,
+    old_reward,
+    new_reward
+)
+
+    with open(pdf_path, "rb") as f:
+        st.download_button(
+        label="📄 Download Report PDF",
+        data=f,
+        file_name="acrobot_report.pdf",
+        mime="application/pdf"
+    )
+
     # =================================================
     # SUMMARY BOX
     # =================================================
@@ -419,7 +551,6 @@ elif page == "Graphs":
     ✔ The reward improved compared to the original DQN.
     ✔ Overall performance shows better efficiency and control.
     """)
-
 
 # =====================================================
 # 4- ABOUT DQN PAGE
